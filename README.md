@@ -12,3 +12,4 @@ Just execute the main script
 ./local_task_ai
 ```
 
+![menu example](./assets/image1.png)
