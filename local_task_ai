@@ -1,0 +1,244 @@
+#!/bin/bash
+
+set -u 
+
+echo '
+__/\\\\\\\\\\\\\\\___________/\\\\\\\\\___________/\\\\\\\\\\\\\_________        
+ _\///////\\\/////__________/\\\\\\\\\\\\\________\/\\\/////////\\\_______       
+  _______\/\\\______________/\\\/////////\\\_______\/\\\_______\/\\\_______      
+   _______\/\\\_____________\/\\\_______\/\\\_______\/\\\\\\\\\\\\\\________     
+    _______\/\\\_____________\/\\\\\\\\\\\\\\\_______\/\\\/////////\\\_______    
+     _______\/\\\_____________\/\\\/////////\\\_______\/\\\_______\/\\\_______   
+      _______\/\\\_____________\/\\\_______\/\\\_______\/\\\_______\/\\\_______  
+       _______\/\\\________/\\\_\/\\\_______\/\\\__/\\\_\/\\\\\\\\\\\\\/___/\\\_ 
+        _______\///________\///__\///________\///__\///__\/////////////____\///__
+'
+
+echo "-=-=-=- AI Local Todo App by The Artificial Business -=-=-=-"
+echo "All tasks are stored locally."
+echo "This application uses ChatGPT from OpenAI to power its AI functionalities."
+echo ""
+
+# Default environment file name
+ENV_FILE=".env"
+
+# Check if environment variables are set
+if [ -f "$ENV_FILE" ]; then
+    source $ENV_FILE
+fi
+
+# Check if TASK_FILE and API_KEY are set, if not, ask the user
+if [ -z "$TASK_FILE" ] || [ -z "$API_KEY" ]; then
+    echo "It seems you are running the script for the first time or missing some config."
+    # Ask for the task file if not set
+    if [ -z "$TASK_FILE" ]; then
+        echo "Enter the filename to store tasks:"
+        read TASK_FILE
+        echo "TASK_FILE='$TASK_FILE'" >> $ENV_FILE
+    fi
+
+    # Ask for the API key if not set
+    if [ -z "$API_KEY" ]; then
+        echo "Enter your OpenAI API key:"
+        read API_KEY
+        echo "API_KEY='$API_KEY'" >> $ENV_FILE
+    fi
+else
+    echo "Using task file: $TASK_FILE"
+fi
+
+echo ""
+
+# Function to add a task
+add_task() {
+    echo "$1" >> $TASK_FILE
+    echo "Task added."
+}
+
+get_tasks_todo() {
+    cat $TASK_FILE | grep -v -- "- completed"
+}
+
+get_tasks_completed() {
+    cat $TASK_FILE | grep -- "- completed"
+}
+
+# Function to list tasks
+list_tasks() {
+    task_complete_count=$(get_tasks_completed | wc -l)
+    if [ $task_complete_count -ne 0 ]; then
+        echo '
+   _____ ____  __  __ _____  _      ______ _______ ______ _____  
+  / ____/ __ \|  \/  |  __ \| |    |  ____|__   __|  ____|  __ \ 
+ | |   | |  | | \  / | |__) | |    | |__     | |  | |__  | |  | |
+ | |   | |  | | |\/| |  ___/| |    |  __|    | |  |  __| | |  | |
+ | |___| |__| | |  | | |    | |____| |____   | |  | |____| |__| |
+  \_____\____/|_|  |_|_|    |______|______|  |_|  |______|_____/ 
+'
+        get_tasks_completed
+        echo ""
+    fi
+
+    task_todo_count=$(get_tasks_todo | wc -l)
+    if [ $task_todo_count -eq 0 ]; then
+        echo '
+  /$$$$$$  /$$       /$$             /$$$$$$$   /$$$$$$  /$$   /$$ /$$$$$$$$
+ /$$__  $$| $$      | $$            | $$__  $$ /$$__  $$| $$$ | $$| $$_____/
+| $$  \ $$| $$      | $$            | $$  \ $$| $$  \ $$| $$$$| $$| $$      
+| $$$$$$$$| $$      | $$            | $$  | $$| $$  | $$| $$ $$ $$| $$$$$   
+| $$__  $$| $$      | $$            | $$  | $$| $$  | $$| $$  $$$$| $$__/   
+| $$  | $$| $$      | $$            | $$  | $$| $$  | $$| $$\  $$$| $$      
+| $$  | $$| $$$$$$$$| $$$$$$$$      | $$$$$$$/|  $$$$$$/| $$ \  $$| $$$$$$$$
+|__/  |__/|________/|________/      |_______/  \______/ |__/  \__/|________/
+'
+    else
+        echo '
+  _______ ____  _____   ____  
+ |__   __/ __ \|  __ \ / __ \ 
+    | | | |  | | |  | | |  | |
+    | | | |  | | |  | | |  | |
+    | | | |__| | |__| | |__| |
+    |_|  \____/|_____/ \____/ 
+'
+        get_tasks_todo
+    fi
+}
+
+# Function to mark a task as completed
+complete_task() {
+    sed -i "/$1/d" $TASK_FILE
+    echo "$1 - completed" >> $TASK_FILE
+    echo "Task completed."
+}
+
+# Function to delete a task
+delete_task() {
+    sed -i "/$1/d" $TASK_FILE
+    echo "Task deleted."
+}
+
+want_to_continue() {
+    echo ""
+    echo "press any key to got back to the menu"
+    read response
+    echo ""
+    return
+}
+
+# Function to get advice from ChatGPT
+get_advice() {
+    number_of_tasks=$(get_tasks_todo | wc -l)
+    tasks=$(get_tasks_todo)
+
+    if [ $number_of_tasks -eq 0 ]; then
+        echo '
+  /$$$$$$  /$$       /$$             /$$$$$$$   /$$$$$$  /$$   /$$ /$$$$$$$$
+ /$$__  $$| $$      | $$            | $$__  $$ /$$__  $$| $$$ | $$| $$_____/
+| $$  \ $$| $$      | $$            | $$  \ $$| $$  \ $$| $$$$| $$| $$      
+| $$$$$$$$| $$      | $$            | $$  | $$| $$  | $$| $$ $$ $$| $$$$$   
+| $$__  $$| $$      | $$            | $$  | $$| $$  | $$| $$  $$$$| $$__/   
+| $$  | $$| $$      | $$            | $$  | $$| $$  | $$| $$\  $$$| $$      
+| $$  | $$| $$$$$$$$| $$$$$$$$      | $$$$$$$/|  $$$$$$/| $$ \  $$| $$$$$$$$
+|__/  |__/|________/|________/      |_______/  \______/ |__/  \__/|________/
+'
+        return
+    fi
+    if [ $number_of_tasks -eq 1 ]; then
+        echo -e "You have only one task to do:\n$tasks"
+        return
+    fi
+
+    
+    # need to put the tasks on one line with the \n separator:
+    tasks=$(echo "$tasks" | sed ':a;N;$!ba;s/\n/\\n/g')
+    model="gpt-3.5-turbo"
+    payload=$(cat <<EOF
+    {
+        "messages": [
+            {
+                "role":"system", 
+                "content": "You are a task manager expert. You will respond with brief advice on how to prioritize tasks. Keep it short and simple. You will help prioritize tasks for a user."
+            },
+            {
+                "role":"user", 
+                "content": "I need advice on how to prioritize my tasks:\n${tasks}"
+            }
+        ],
+        "temperature": 0.7,
+        "model": "$model"
+    }
+EOF
+)
+
+    response=$(
+        curl -s -X POST "https://api.openai.com/v1/chat/completions" \
+             -H "Authorization: Bearer $API_KEY" \
+             -H "Content-Type: application/json" \
+             -d "$payload"
+    )
+    
+    # if contains a error key:
+    if [[ $response == *"error"* ]]; then
+        echo "Error: $(echo $response | jq -r '.error.code') - $(echo $response | jq -r '.error.message')"
+        exit 1
+    fi
+    
+    echo $response | jq -r '.choices[0].message.content'
+}
+
+# Main menu for task management
+PS3='Please enter your choice: '
+options=("Add Task" "List Tasks" "Complete Task" "Delete Task" "Get Advice" "Quit")
+while true; do
+    echo '
+ __    __     ______     __   __     __  __    
+/\ "-./  \   /\  ___\   /\ "-.\ \   /\ \/\ \   
+\ \ \-./\ \  \ \  __\   \ \ \-.  \  \ \ \_\ \  
+ \ \_\ \ \_\  \ \_____\  \ \_\\"\_\  \ \_____\ 
+  \/_/  \/_/   \/_____/   \/_/ \/_/   \/_____/ 
+  '
+    select opt in "${options[@]}"
+    do
+        case $opt in
+            "Add Task")
+                echo ""
+                echo "Enter the task:"
+                read task
+                add_task "$task"
+                break
+                ;;
+            "List Tasks")
+                echo ""
+                list_tasks
+                want_to_continue
+                break
+                ;;
+            "Complete Task")
+                echo ""
+                echo "Tasks to complete:"
+                get_tasks_todo
+                echo "Enter the task to complete:"
+                read task
+                complete_task "$task"
+                break
+                ;;
+            "Delete Task")
+                echo ""
+                echo "Enter the task to delete:"
+                read task
+                delete_task "$task"
+                break
+                ;;
+            "Get Advice")
+                echo ""
+                get_advice
+                want_to_continue
+                break
+                ;;
+            "Quit")
+                exit 0
+                ;;
+            *) echo "Invalid option $REPLY";;
+        esac
+    done
+done
